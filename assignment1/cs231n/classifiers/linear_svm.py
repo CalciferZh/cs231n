@@ -35,21 +35,25 @@ def svm_loss_naive(W, X, y, reg):
       margin = scores[j] - correct_class_score + 1 # note delta = 1
       if margin > 0:
         loss += margin
+        dW[:,j] += X[i,:].T
+        dW[:,y[i]] -= X[i,:].T
 
   # Right now the loss is a sum over all training examples, but we want it
   # to be an average instead so we divide by num_train.
   loss /= num_train
+  dW /= num_train
 
   # Add regularization to the loss.
   loss += reg * np.sum(W * W)
+  dW += 2 * reg * W
 
   #############################################################################
-  # TODO:                                                                     #
-  # Compute the gradient of the loss function and store it dW.                #
-  # Rather that first computing the loss and then computing the derivative,   #
-  # it may be simpler to compute the derivative at the same time that the     #
-  # loss is being computed. As a result you may need to modify some of the    #
-  # code above to compute the gradient.                                       #
+  # TODO:                                              #
+  # Compute the gradient of the loss function and store it dW.           #
+  # Rather that first computing the loss and then computing the derivative,  #
+  # it may be simpler to compute the derivative at the same time that the    #
+  # loss is being computed. As a result you may need to modify some of the  #
+  # code above to compute the gradient.                          #
   #############################################################################
 
 
@@ -66,25 +70,48 @@ def svm_loss_vectorized(W, X, y, reg):
   dW = np.zeros(W.shape) # initialize the gradient as zero
 
   #############################################################################
-  # TODO:                                                                     #
+  # TODO:                                              #
   # Implement a vectorized version of the structured SVM loss, storing the    #
-  # result in loss.                                                           #
+  # result in loss.                                       #
   #############################################################################
+  (N,D) = X.shape
+  scores = np.dot(X,W)
+  correct_scores = scores[np.arange(N),y]
+  margin = scores - correct_scores.reshape((-1,1)) + 1
+  margin[np.arange(N), y] = 0
+  # using mask here might be a little bit slower
+  # but the mask can be reused later
+  mask = np.zeros(margin.shape)
+  mask = margin > 0
+  loss = np.sum(margin * mask) / N
+  # margin = np.maximum(np.zeros(margin.shape), margin)
+  # loss = np.sum(margin) / N
+  loss += reg * np.sum(W * W)
   pass
   #############################################################################
-  #                             END OF YOUR CODE                              #
+  #                             END OF YOUR CODE           #
   #############################################################################
 
 
   #############################################################################
-  # TODO:                                                                     #
-  # Implement a vectorized version of the gradient for the structured SVM     #
-  # loss, storing the result in dW.                                           #
-  #                                                                           #
-  # Hint: Instead of computing the gradient from scratch, it may be easier    #
-  # to reuse some of the intermediate values that you used to compute the     #
-  # loss.                                                                     #
+  # TODO:                                              #
+  # Implement a vectorized version of the gradient for the structured SVM    #
+  # loss, storing the result in dW.                            #
+  #                                                  #
+  # Hint: Instead of computing the gradient from scratch, it may be easier  #
+  # to reuse some of the intermediate values that you used to compute the   #
+  # loss.                                              #
   #############################################################################
+  
+  grad_w = np.zeros(mask.shape)
+  grad_w[mask] = 1
+
+  hit = np.sum(mask, axis=1)
+  grad_w[np.arange(N),y] = -hit[np.arange(N)]
+  dW = np.dot(grad_w.T, X).T
+  dW /= N
+  dW += 2 * reg * W
+
   pass
   #############################################################################
   #                             END OF YOUR CODE                              #
