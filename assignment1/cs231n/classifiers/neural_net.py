@@ -229,8 +229,8 @@ class TwoLayerNet(object):
                 train_acc_history.append(train_acc)
                 val_acc_history.append(val_acc)
 
-            # Decay learning rate
-            learning_rate *= learning_rate_decay
+                # Decay learning rate
+                learning_rate *= learning_rate_decay
 
         return {
           'loss_history': loss_history,
