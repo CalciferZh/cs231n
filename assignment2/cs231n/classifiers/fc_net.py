@@ -174,17 +174,26 @@ class FullyConnectedNet(object):
             if i == 0:
                 self.params['W1'] = np.random.normal(0, weight_scale, (input_dim, hidden_dims[0]))
                 self.params['b1'] = np.random.normal(0, weight_scale, hidden_dims[0])
-                # params['gamma1'] = np.ones(input_dim)
-                # params['beta1'] = np.zeros(input_dim)
+                if self.use_batchnorm:
+                    self.params['gamma1'] = np.ones(dim)
+                    self.params['beta1'] = np.zeros(dim)
             else:
-                name = 'W' + str(i+1)
+                name = get_name('W',i)
                 self.params[name] = np.random.normal(0, weight_scale, (hidden_dims[i-1], hidden_dims[i]))
-                name = 'b' + str(i+1)
+                name = get_name('b',i)
                 self.params[name] = np.random.normal(0, weight_scale, hidden_dims[i])
-                # name = 'gamma' + str(i+1)
-                # params[name] = np.ones(input_dim)
-                # name = 'beta' + str(i+1)
-                # params[name] = np.zeros(input_dim)
+                if self.use_batchnorm:
+                    name = get_name('gamma',i)
+                    self.params[name] = np.ones(dim)
+                    name = get_name('beta',i)
+                    self.params[name] = np.zeros(dim)
+                # drop out params to be initilaized here
+        
+        name = get_name('W',self.num_layers-1)
+        self.params[name] = np.random.normal(0, weight_scale, (hidden_dims[-1], num_classes))
+        name = get_name('b',self.num_layers-1)
+        self.params[name] = np.random.normal(0, weight_scale, num_classes)
+
         
         ############################################################################
         # TODO: Initialize the parameters of the network, storing all values in    #
@@ -254,19 +263,30 @@ class FullyConnectedNet(object):
         for i in range(self.num_layers):
             wname = get_name('W', i)
             bname = get_name('b', i)
+            
+            # say_hello('affine', i, [wname, bname])
             out, cache = affine_forward(out, self.params[wname], self.params[bname])
             cache_a.append(cache)
             
-            if i == self.num_layers - 2:
+            if i == self.num_layers - 1:
                 break
             
-            if self.use_batchnorm:
-                pass
+            if self.use_batchnorm and i != self.num_layers - 1:
+                gname = get_name('gamma', i)
+                beta_name = get_name('beta', i)
+                gamma = self.params[gname]
+                beta = self.params[beta_name]
                 
+                # say_hello('batch_norm', i, [gname, beta_name])
+                out, cache = batchnorm_forward(out, gamma, beta, self.bn_params[i])
+                cache_b.append(cache)
+                
+            # say_hello('relu', i, ['no params'])
             out, cache = relu_forward(out)
             cache_r.append(cache)
             
             if self.dropout_param is not None:
+                # say_hello('dropout', i, ['no params'])
                 pass
             
         scores = out
@@ -298,13 +318,13 @@ class FullyConnectedNet(object):
         for i in range(self.num_layers-1):
             wname = get_name('W', i)
             w = self.params[wname]
-            loss += self.reg * np.sum(w * w)
+            loss += 0.5 * self.reg * np.sum(w * w)
             
-        for i in range(self.num_layers-2,-1,-1):
+        for i in range(self.num_layers-1,-1,-1):
             wname = get_name('W', i)
             bname = get_name('b', i)
-            
-            if i == self.num_layers-2:
+            if i == self.num_layers - 1:
+                say_hello("affine(back)", i, [wname,bname])
                 dout, grads[wname], grads[bname] = affine_backward(dout, cache_a[i])
                 # print (grads[wname][0][0])
                 grads[wname] += self.reg * self.params[wname]
@@ -314,11 +334,17 @@ class FullyConnectedNet(object):
             if self.dropout_param is not None:
                 pass
             
+            say_hello("relu", i, ["no parameters"])
             dout = relu_backward(dout, cache_r[i])
             
             if self.use_batchnorm:
-                pass
+                gname = get_name('gamma', i)
+                beta_name = get_name('beta', i)
+                
+                say_hello("batch_norm", i, [gname,beta_name])
+                dout, grads[gname], grads[beta_name] = batchnorm_backward(dout, cache_b[i])
             
+            say_hello("affine(back)", i, [wname,bname])
             dout, grads[wname], grads[bname] = affine_backward(dout, cache_a[i])
             grads[wname] += self.reg * self.params[wname]
             
@@ -344,4 +370,23 @@ class FullyConnectedNet(object):
         return loss, grads
     
 def get_name(name, series):
+    '''Get the name of the parameter.'''
     return name + str(series+1)
+
+def say_hello(layer_name, layer_num, para_names):
+    pass
+    # '''To check the process of the network.'''
+    # print("At %s layer %d, using parameter:" 
+    #       % (layer_name, layer_num+1))
+    # print(para_names)
+
+
+
+
+
+
+
+
+
+
+

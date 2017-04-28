@@ -166,18 +166,26 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     mode = bn_param['mode']
     eps = bn_param.get('eps', 1e-5)
 
-    momentum = bn_param.get('momentum', 0.9)
+    # momentum = bn_param.get('momentum', 0.9)
+    momentum = bn_param.get('momentum', 0)
 
     N, D = x.shape
-    running_mean = bn_param.get('running_mean', np.zeros(D, dtype=x.dtype))
-    running_var = bn_param.get('running_var', np.zeros(D, dtype=x.dtype))
+
+
 
     out, cache = None, None
+    sample_mean = np.mean(x,axis=0)
+    sample_var = np.var(x,axis=0)
+    
     if mode == 'train':
-        sample_mean = np.mean(x,axis=0)
-        sample_var = np.var(x,axis=0)
-        running_mean = momentum * running_mean + (1 - momentum) * sample_mean
-        running_var = momentum * running_var + (1 - momentum) * sample_var
+        if 'running_mean' in bn_param:
+            running_mean = bn_param.get('running_mean', np.zeros(D, dtype=x.dtype))
+            running_var = bn_param.get('running_var', np.zeros(D, dtype=x.dtype))
+            running_mean = momentum * running_mean + (1 - momentum) * sample_mean
+            running_var = momentum * running_var + (1 - momentum) * sample_var
+        else:
+            running_mean = sample_mean
+            running_var = sample_var
         xhat = (x - running_mean) / np.sqrt(running_var + eps)
         out = gamma * xhat + beta
         cache = (x, xhat, gamma, running_var, running_mean, eps)
@@ -201,6 +209,14 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #                           END OF YOUR CODE                          #
         #######################################################################
     elif mode == 'test':
+        if 'running_mean' in bn_param:
+            running_mean = bn_param.get('running_mean', np.zeros(D, dtype=x.dtype))
+            running_var = bn_param.get('running_var', np.zeros(D, dtype=x.dtype))
+            running_mean = momentum * running_mean + (1 - momentum) * sample_mean
+            running_var = momentum * running_var + (1 - momentum) * sample_var
+        else:
+            running_mean = sample_mean
+            running_var = sample_var
         xhat = (x - running_mean) / (np.sqrt(running_var + eps))
         out = gamma * xhat + beta
         #######################################################################
