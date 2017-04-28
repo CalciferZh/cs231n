@@ -187,7 +187,6 @@ class FullyConnectedNet(object):
                     self.params[name] = np.ones(dim)
                     name = get_name('beta',i)
                     self.params[name] = np.zeros(dim)
-                # drop out params to be initilaized here
         
         name = get_name('W',self.num_layers-1)
         self.params[name] = np.random.normal(0, weight_scale, (hidden_dims[-1], num_classes))
@@ -264,7 +263,6 @@ class FullyConnectedNet(object):
             wname = get_name('W', i)
             bname = get_name('b', i)
             
-            # say_hello('affine', i, [wname, bname])
             out, cache = affine_forward(out, self.params[wname], self.params[bname])
             cache_a.append(cache)
             
@@ -277,17 +275,15 @@ class FullyConnectedNet(object):
                 gamma = self.params[gname]
                 beta = self.params[beta_name]
                 
-                # say_hello('batch_norm', i, [gname, beta_name])
                 out, cache = batchnorm_forward(out, gamma, beta, self.bn_params[i])
                 cache_b.append(cache)
                 
-            # say_hello('relu', i, ['no params'])
             out, cache = relu_forward(out)
             cache_r.append(cache)
-            
-            if self.dropout_param is not None:
-                # say_hello('dropout', i, ['no params'])
-                pass
+
+            if self.use_dropout:
+                out, cache = dropout_forward(out, self.dropout_param)
+                cache_d.append(cache)
             
         scores = out
         
@@ -330,12 +326,12 @@ class FullyConnectedNet(object):
                 grads[wname] += self.reg * self.params[wname]
                 # print (grads[wname][0][0])
                 continue
-            
-            if self.dropout_param is not None:
-                pass
-            
+                      
             say_hello("relu", i, ["no parameters"])
             dout = relu_backward(dout, cache_r[i])
+            
+            if self.use_dropout:
+                dout = dropout_backward(dout, cache_d[i])
             
             if self.use_batchnorm:
                 gname = get_name('gamma', i)
