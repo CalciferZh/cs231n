@@ -598,13 +598,9 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     - cache: Values needed for the backward pass
     """
     N,C,H,W = x.shape
-    flatten_x = np.reshape(x, (N,C,-1))
-    out = np.zeros_like(flatten_x)
-    cache = []
-    for i in range(C):
-        out[:,i,:], tmp = batchnorm_forward(flatten_x[:,i,:], gamma[i], beta[i], bn_param)
-        cache.append(tmp)
-    out = np.reshape(out, x.shape)
+    flatten_x = x.transpose(0,2,3,1).reshape(-1,C)
+    out, cache = batchnorm_forward(flatten_x, gamma, beta, bn_param)
+    out = out.reshape(N,H,W,C).transpose(0,3,1,2)
     ###########################################################################
     # TODO: Implement the forward pass for spatial batch normalization.       #
     #                                                                         #
@@ -634,17 +630,9 @@ def spatial_batchnorm_backward(dout, cache):
     - dbeta: Gradient with respect to shift parameter, of shape (C,)
     """
     N,C,H,W = dout.shape
-    dgamma, dbeta = [], []
-    
-    flatten_dout = np.reshape(dout, (N,C,-1))
-    dx = np.zeros_like(flatten_dout)
-    for i in range(C):
-        dx[:,i,:], temp1, temp2 = batchnorm_backward(flatten_dout[:,i,:], cache[i])
-        print(temp1.shape)
-        print(temp2.shape)
-        dgamma.append(temp1)
-        dbeta.append(temp2)
-    dx = np.reshape(dx, dout.shape)
+    flatten_dout = dout.transpose(0,2,3,1).reshape(-1,C)
+    dx, dgamma, dbeta = batchnorm_backward(flatten_dout, cache)
+    dx = dx.reshape(N,H,W,C).transpose(0,3,1,2)
 
     ###########################################################################
     # TODO: Implement the backward pass for spatial batch normalization.      #
