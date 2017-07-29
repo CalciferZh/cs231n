@@ -28,13 +28,15 @@ def rnn_step_forward(x, prev_h, Wx, Wh, b):
     - next_h: Next hidden state, of shape (N, H)
     - cache: Tuple of values needed for the backward pass.
     """
-    next_h, cache = None, None
+    
     ##############################################################################
     # TODO: Implement a single forward step for the vanilla RNN. Store the next  #
     # hidden state and any values you need for the backward pass in the next_h   #
     # and cache variables respectively.                                          #
     ##############################################################################
-    pass
+    a = np.dot(prev_h, Wh) + np.dot(x, Wx) + b
+    next_h = np.tanh(a)
+    cache = (x, prev_h, Wh, Wx, b, next_h)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -56,14 +58,19 @@ def rnn_step_backward(dnext_h, cache):
     - dWh: Gradients of hidden-to-hidden weights, of shape (H, H)
     - db: Gradients of bias vector, of shape (H,)
     """
-    dx, dprev_h, dWx, dWh, db = None, None, None, None, None
     ##############################################################################
     # TODO: Implement the backward pass for a single step of a vanilla RNN.      #
     #                                                                            #
     # HINT: For the tanh function, you can compute the local derivative in terms #
     # of the output value from tanh.                                             #
     ##############################################################################
-    pass
+    x, prev_h, Wh, Wx, b, next_h = cache
+    da = dnext_h * (1 - np.square(next_h))
+    dx = np.dot(da, Wx.T)
+    dprev_h = np.dot(da, Wh.T)
+    dWx = np.dot(x.T, da)
+    dWh = np.dot(prev_h.T, da)
+    db = np.sum(da, axis = 0)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -88,13 +95,21 @@ def rnn_forward(x, h0, Wx, Wh, b):
     - h: Hidden states for the entire timeseries, of shape (N, T, H).
     - cache: Values needed in the backward pass
     """
-    h, cache = None, None
     ##############################################################################
     # TODO: Implement forward pass for a vanilla RNN running on a sequence of    #
     # input data. You should use the rnn_step_forward function that you defined  #
     # above. You can use a for loop to help compute the forward pass.            #
     ##############################################################################
-    pass
+    # def rnn_step_forward(x, prev_h, Wx, Wh, b) -> next_h, cache
+    N, T, D = x.shape
+    N, H = h0.shape
+    h = np.zeros((N, T, H))
+    prev_h = h0
+    for t in range(T):
+        next_h, _ = rnn_step_forward(x[:, t, :], prev_h, Wx, Wh, b)
+        prev_h = next_h
+        h[:, t, :] = prev_h
+    cache = (x, h0, Wh, Wx, b, h)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -121,7 +136,32 @@ def rnn_backward(dh, cache):
     # sequence of data. You should use the rnn_step_backward function that you   #
     # defined above. You can use a for loop to help compute the backward pass.   #
     ##############################################################################
-    pass
+    # def rnn_step_backward(dnext_h, cache) -> dx, dprev_h, dWx, dWh, db
+    x, h0, Wh, Wx, b, h = cache
+    N, T, H = dh.shape
+    N, T, D = x.shape
+
+    next_h = h[:,-1,:]
+
+    dprev_h = np.zeros((N, H))
+    dx = np.zeros((N, T, D))
+    dh0 = np.zeros((N, H))
+    dWx= np.zeros((D, H))
+    dWh = np.zeros((H, H))
+    db = np.zeros((H))
+
+    for t in reversed(range(T)):
+        if t == 0:
+            prev_h = h0
+        else:
+            prev_h = h[:,t-1,:]
+        step_cache = (x[:,t,:], prev_h, Wh, Wx, b, next_h)
+        next_h = prev_h
+        dnext_h = dh[:,t,:] + dprev_h
+        dx[:,t,:], dprev_h, dWxt, dWht, dbt = rnn_step_backward(dnext_h, step_cache)
+        dWx, dWh, db = dWx+dWxt, dWh+dWht, db+dbt
+
+    dh0 = dprev_h
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -136,7 +176,7 @@ def word_embedding_forward(x, W):
 
     Inputs:
     - x: Integer array of shape (N, T) giving indices of words. Each element idx
-      of x muxt be in the range 0 <= idx < V.
+      of x must be in the range 0 <= idx < V.
     - W: Weight matrix of shape (V, D) giving word vectors for all words.
 
     Returns a tuple of:
@@ -149,7 +189,15 @@ def word_embedding_forward(x, W):
     #                                                                            #
     # HINT: This can be done in one line using NumPy's array indexing.           #
     ##############################################################################
-    pass
+    N, T = x.shape
+    V, D = W.shape
+    out = np.zeros((N, T, D))
+
+    for i in range(N):
+        for j in range(T):
+            out[i,j] = W[x[i,j]]
+
+    cache = (x, W.shape)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -178,7 +226,9 @@ def word_embedding_backward(dout, cache):
     # Note that Words can appear more than once in a sequence.                   #
     # HINT: Look up the function np.add.at                                       #
     ##############################################################################
-    pass
+    x, W_shape = cache
+    dW = np.zeros(W_shape)
+    np.add.at(dW, x, dout)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
