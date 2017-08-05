@@ -227,11 +227,15 @@ class CaptioningRNN(object):
         captions = np.zeros((N, max_length), dtype='int32')
         h, _ = affine_forward(features, W_proj, b_proj)
         word_idx = np.array([self._start] * N)
+        c = np.zeros_like(h)
         for i in range(max_length):
             # 1
             word_v, _ = word_embedding_forward(word_idx.reshape(N, 1), W_embed)
             # 2
-            h, _ = rnn_step_forward(word_v.reshape(N, -1), h, Wx, Wh, b)
+            if self.cell_type == 'rnn':
+                h, _ = rnn_step_forward(word_v.reshape(N, -1), h, Wx, Wh, b)
+            else:
+                h, c, _ = lstm_step_forward(word_v.reshape(N, -1), h, c, Wx, Wh, b)
             # 3
             scores = h.dot(W_vocab) + b_vocab
             # 4
